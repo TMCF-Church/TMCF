@@ -41,20 +41,27 @@ export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenD
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
           
+          {/* Prominent Google Sheet DB Button */}
           <button 
-            className={`btn ${hasSheet ? 'btn-emerald' : 'btn-secondary'}`}
+            className={`btn ${hasSheet ? 'btn-emerald' : 'btn-emerald'}`}
             onClick={onOpenGoogleSheets}
             title="Connect Google Sheets for Live Database Sync"
-            style={{ fontSize: '0.85rem', padding: '0.5rem 0.9rem' }}
+            style={{ 
+              fontSize: '0.85rem', 
+              padding: '0.55rem 1rem', 
+              background: hasSheet ? 'var(--accent-emerald-gradient)' : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+              color: '#ffffff',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
+            }}
           >
-            <FileSpreadsheet size={16} /> {hasSheet ? 'Google Sheet Connected' : 'Connect Google Sheet DB'}
+            <FileSpreadsheet size={17} /> {hasSheet ? 'Google Sheet Connected' : 'Connect Google Sheet DB'}
           </button>
 
           <button 
             className="btn btn-secondary" 
             onClick={onOpenDeployment}
             title="Deployment Guide"
-            style={{ fontSize: '0.85rem', padding: '0.5rem 0.9rem' }}
+            style={{ fontSize: '0.85rem', padding: '0.55rem 0.9rem' }}
           >
             <HelpCircle size={16} /> 24/7 Hosting
           </button>
@@ -68,7 +75,7 @@ export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenD
               <button 
                 className="btn btn-danger" 
                 onClick={onLogout}
-                style={{ fontSize: '0.85rem', padding: '0.5rem 0.9rem' }}
+                style={{ fontSize: '0.85rem', padding: '0.55rem 0.9rem' }}
               >
                 <LogOut size={16} /> Logout
               </button>
@@ -77,7 +84,7 @@ export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenD
             <button 
               className="btn btn-primary" 
               onClick={onOpenLogin}
-              style={{ fontSize: '0.55rem 1.1rem' }}
+              style={{ fontSize: '0.85rem', padding: '0.55rem 1.1rem' }}
             >
               <LogIn size={16} /> Pastor Login
             </button>
