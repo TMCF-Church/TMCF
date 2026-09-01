@@ -6,9 +6,8 @@ const GITHUB_PAT = ['ghp_', 'JafoGfoU4PaXXyxnHUoc1cvaPn5Ba930KrQc'].join('');
 
 /**
  * Configure your Google Sheet Web App URL here offline BEFORE deploying.
- * Example: 'https://script.google.com/macros/s/AKfycb.../exec'
  */
-export const OFFLINE_GOOGLE_SHEET_URL = '';
+export const OFFLINE_GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbwUOPvO2e7mAw2CaA6gB4x1vXsBxwwVVZqkVF0w5qGVm1_9dBHpq0C0Id8ICTUlbnuJ/exec';
 
 /**
  * Read local records immediately (0ms delay)
