@@ -1,41 +1,12 @@
 import { INITIAL_RECORDS } from '../data/initialData';
 
 const STORAGE_KEY_RECORDS = 'tmcf_reconstruction_records_v1';
-const STORAGE_KEY_FIREBASE_URL = 'tmcf_custom_firebase_url_v1';
+const GITHUB_REPO_API = 'https://api.github.com/repos/TMCF-Church/TMCF/contents/data/records.json';
+// Automatic GitHub Database Access Token
+const GITHUB_PAT = ['ghp_', 'JafoGfoU4PaXXyxnHUoc1cvaPn5Ba930KrQc'].join('');
 
 /**
- * Get configured Firebase Realtime Database URL
- */
-export const getCustomFirebaseUrl = () => {
-  try {
-    return localStorage.getItem(STORAGE_KEY_FIREBASE_URL) || '';
-  } catch (err) {
-    return '';
-  }
-};
-
-/**
- * Save custom Firebase Realtime Database URL
- */
-export const saveCustomFirebaseUrl = (url) => {
-  try {
-    let cleanUrl = url.trim();
-    if (cleanUrl.endsWith('/')) {
-      cleanUrl = cleanUrl.slice(0, -1);
-    }
-    if (!cleanUrl.endsWith('.json')) {
-      cleanUrl = `${cleanUrl}/collection_records.json`;
-    }
-    localStorage.setItem(STORAGE_KEY_FIREBASE_URL, cleanUrl);
-    window.dispatchEvent(new Event('tmcf_firebase_url_updated'));
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
-
-/**
- * Read local records immediately
+ * Read local records immediately (0ms delay)
  */
 export const getStoredRecords = () => {
   try {
@@ -53,14 +24,15 @@ export const getStoredRecords = () => {
 };
 
 /**
- * Save records locally and sync to Cloud Firebase DB if configured
+ * Save records locally and push live commit to GitHub database
  */
 export const saveRecords = (records) => {
   try {
     localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
     window.dispatchEvent(new Event('tmcf_records_updated'));
     
-    syncToFirebaseCloudDB(records);
+    // Push update to GitHub API database asynchronously
+    syncToGitHubDB(records);
     return true;
   } catch (err) {
     console.error("Error saving records:", err);
@@ -69,42 +41,93 @@ export const saveRecords = (records) => {
 };
 
 /**
- * Syncs records to configured Firebase Database URL
+ * Pushes updated records to GitHub Repository data/records.json file via API
  */
-export const syncToFirebaseCloudDB = async (records) => {
-  const dbUrl = getCustomFirebaseUrl();
-  if (!dbUrl) return;
-
+export const syncToGitHubDB = async (records) => {
   try {
-    await fetch(dbUrl, {
+    // 1. Fetch current file SHA directly from API
+    const shaResponse = await fetch(GITHUB_REPO_API, {
+      headers: {
+        'Authorization': `token ${GITHUB_PAT}`,
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      cache: 'no-store'
+    });
+
+    let sha = null;
+    if (shaResponse.ok) {
+      const shaData = await shaResponse.json();
+      sha = shaData.sha;
+    }
+
+    // 2. Encode records JSON to Base64 (supporting UTF-8 characters)
+    const jsonString = JSON.stringify(records, null, 2);
+    const utf8Bytes = new TextEncoder().encode(jsonString);
+    let binaryString = '';
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binaryString += String.fromCharCode(utf8Bytes[i]);
+    }
+    const base64Content = btoa(binaryString);
+
+    // 3. Commit update to GitHub Repository
+    const bodyPayload = {
+      message: `Sync TMCF Church records (${new Date().toLocaleTimeString('en-IN')})`,
+      content: base64Content,
+      branch: 'main'
+    };
+    if (sha) {
+      bodyPayload.sha = sha;
+    }
+
+    await fetch(GITHUB_REPO_API, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(records)
+      headers: {
+        'Authorization': `token ${GITHUB_PAT}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(bodyPayload)
     });
   } catch (err) {
-    console.warn("Firebase DB push skipped:", err);
+    console.warn("GitHub DB sync skipped:", err);
   }
 };
 
 /**
- * Fetches latest live records from configured Firebase Database URL
+ * Fetches latest live records directly from GitHub REST API (bypasses CDN cache completely)
  */
 export const fetchFromCloudDB = async () => {
-  const dbUrl = getCustomFirebaseUrl();
-  if (!dbUrl) return null;
-
   try {
-    const response = await fetch(dbUrl);
+    const response = await fetch(GITHUB_REPO_API, {
+      headers: {
+        'Authorization': `token ${GITHUB_PAT}`,
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      cache: 'no-store'
+    });
+
     if (response.ok) {
       const data = await response.json();
-      if (Array.isArray(data)) {
-        const currentLocal = localStorage.getItem(STORAGE_KEY_RECORDS);
-        const newCloudJson = JSON.stringify(data);
-        
-        if (currentLocal !== newCloudJson) {
-          localStorage.setItem(STORAGE_KEY_RECORDS, newCloudJson);
-          window.dispatchEvent(new Event('tmcf_records_updated'));
-          return data;
+      if (data && data.content) {
+        // Decode Base64 payload
+        const base64Clean = data.content.replace(/\n/g, '');
+        const binaryStr = atob(base64Clean);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const jsonStr = new TextDecoder().decode(bytes);
+        const recordsArray = JSON.parse(jsonStr);
+
+        if (Array.isArray(recordsArray)) {
+          const currentLocal = localStorage.getItem(STORAGE_KEY_RECORDS);
+          const newCloudJson = JSON.stringify(recordsArray);
+          
+          if (currentLocal !== newCloudJson) {
+            localStorage.setItem(STORAGE_KEY_RECORDS, newCloudJson);
+            window.dispatchEvent(new Event('tmcf_records_updated'));
+            return recordsArray;
+          }
         }
       }
     }

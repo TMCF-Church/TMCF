@@ -61,12 +61,10 @@ export function App() {
     // Initial Cloud Fetch on Mount
     fetchFromCloudDB().then(() => refreshData());
 
-    // Live Cross-Device Sync Polling every 4 seconds
+    // Live Cross-Device Sync Polling every 3 seconds directly from GitHub API
     const intervalId = setInterval(() => {
-      fetchFromCloudDB().then(() => {
-        setRecords(getStoredRecords());
-      });
-    }, 4000);
+      fetchFromCloudDB().then(() => refreshData());
+    }, 3000);
 
     const handleDataEvent = () => refreshData();
     window.addEventListener('tmcf_records_updated', handleDataEvent);
