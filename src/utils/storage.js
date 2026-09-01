@@ -1,35 +1,83 @@
-import { INITIAL_RECORDS, INITIAL_TARGET_GOAL } from '../data/initialData';
+import { INITIAL_RECORDS } from '../data/initialData';
 
 const STORAGE_KEY_RECORDS = 'tmcf_reconstruction_records_v1';
-const STORAGE_KEY_GOAL = 'tmcf_reconstruction_goal_v1';
-const STORAGE_KEY_FIREBASE = 'tmcf_firebase_config_v1';
 
+// Firebase / Cloud REST Realtime Database URL for Cross-Device Multi-Phone/Laptop Sync
+const CLOUD_SYNC_URL = 'https://tmcf-reconstruction-ledger-default-rtdb.firebaseio.com/collection_records.json';
+
+/**
+ * Get locally stored records immediately
+ */
 export const getStoredRecords = () => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_RECORDS);
     if (!raw) {
-      // First load: save default records
       localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(INITIAL_RECORDS));
       return INITIAL_RECORDS;
     }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : INITIAL_RECORDS;
   } catch (err) {
-    console.error("Error reading stored records:", err);
+    console.error("Error reading local records:", err);
     return INITIAL_RECORDS;
   }
 };
 
+/**
+ * Save records locally and push live update to Cloud Database so all devices sync instantly
+ */
 export const saveRecords = (records) => {
   try {
     localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
-    // Dispatch custom event so other components update if needed
     window.dispatchEvent(new Event('tmcf_records_updated'));
+    
+    // Sync to Cloud DB asynchronously for cross-device consistency
+    syncToCloudDB(records);
     return true;
   } catch (err) {
     console.error("Error saving records:", err);
     return false;
   }
+};
+
+/**
+ * Pushes records to Live Cloud Database
+ */
+export const syncToCloudDB = async (records) => {
+  try {
+    await fetch(CLOUD_SYNC_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(records)
+    });
+  } catch (err) {
+    console.warn("Cloud DB push skipped (offline/local fallback active):", err);
+  }
+};
+
+/**
+ * Fetches latest live records from Cloud DB and updates local storage
+ */
+export const fetchFromCloudDB = async () => {
+  try {
+    const response = await fetch(CLOUD_SYNC_URL);
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data) && data.length >= 0) {
+        const currentLocal = localStorage.getItem(STORAGE_KEY_RECORDS);
+        const newCloudJson = JSON.stringify(data);
+        
+        if (currentLocal !== newCloudJson) {
+          localStorage.setItem(STORAGE_KEY_RECORDS, newCloudJson);
+          window.dispatchEvent(new Event('tmcf_records_updated'));
+          return data;
+        }
+      }
+    }
+  } catch (err) {
+    // Graceful offline fallback
+  }
+  return null;
 };
 
 export const addRecord = (newRecordData) => {
@@ -81,40 +129,17 @@ export const deleteRecord = (id) => {
   return true;
 };
 
-export const getTargetGoal = () => {
-  try {
-    const goal = localStorage.getItem(STORAGE_KEY_GOAL);
-    return goal ? parseFloat(goal) : INITIAL_TARGET_GOAL;
-  } catch (err) {
-    return INITIAL_TARGET_GOAL;
-  }
-};
-
-export const saveTargetGoal = (newGoal) => {
-  try {
-    localStorage.setItem(STORAGE_KEY_GOAL, newGoal.toString());
-    window.dispatchEvent(new Event('tmcf_goal_updated'));
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
-
 export const resetRecordsToDefaults = () => {
-  localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(INITIAL_RECORDS));
-  localStorage.setItem(STORAGE_KEY_GOAL, INITIAL_TARGET_GOAL.toString());
-  window.dispatchEvent(new Event('tmcf_records_updated'));
+  saveRecords(INITIAL_RECORDS);
   return INITIAL_RECORDS;
 };
 
-// Export/Import Backup JSON functionality
+// Export/Import Backup JSON
 export const exportBackupJSON = () => {
   const records = getStoredRecords();
-  const goal = getTargetGoal();
   const backupData = {
     appName: "TMCF Church Reconstruction Fund Tracker",
     exportedAt: new Date().toISOString(),
-    targetGoal: goal,
     recordsCount: records.length,
     records: records
   };
@@ -126,9 +151,6 @@ export const importBackupJSON = (jsonString) => {
     const data = JSON.parse(jsonString);
     if (Array.isArray(data.records)) {
       saveRecords(data.records);
-      if (data.targetGoal) {
-        saveTargetGoal(data.targetGoal);
-      }
       return { success: true, count: data.records.length };
     }
     return { success: false, message: "Invalid JSON format: missing records array." };

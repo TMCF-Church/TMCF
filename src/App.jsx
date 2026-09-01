@@ -11,11 +11,10 @@ import { DeploymentModal } from './components/DeploymentModal';
 
 import { 
   getStoredRecords, 
+  fetchFromCloudDB,
   addRecord, 
   updateRecord, 
   deleteRecord, 
-  getTargetGoal, 
-  saveTargetGoal, 
   resetRecordsToDefaults 
 } from './utils/storage';
 
@@ -30,7 +29,6 @@ import { RefreshCw, Church, Heart, Shield } from 'lucide-react';
 export function App() {
   // Main Data States
   const [records, setRecords] = useState([]);
-  const [targetGoal, setTargetGoal] = useState(1500000);
 
   // Authentication State
   const [isPastor, setIsPastor] = useState(false);
@@ -51,7 +49,6 @@ export function App() {
   // Load initial data and auth state
   const refreshData = () => {
     setRecords(getStoredRecords());
-    setTargetGoal(getTargetGoal());
     setIsPastor(checkIsPastorLoggedIn());
     setPastorSession(getPastorSession());
   };
@@ -59,13 +56,22 @@ export function App() {
   useEffect(() => {
     refreshData();
 
+    // Initial Cloud Fetch on Mount
+    fetchFromCloudDB().then(() => refreshData());
+
+    // Live Cross-Device Sync Polling every 4 seconds
+    const intervalId = setInterval(() => {
+      fetchFromCloudDB().then(() => {
+        setRecords(getStoredRecords());
+      });
+    }, 4000);
+
     const handleDataEvent = () => refreshData();
     window.addEventListener('tmcf_records_updated', handleDataEvent);
-    window.addEventListener('tmcf_goal_updated', handleDataEvent);
 
     return () => {
+      clearInterval(intervalId);
       window.removeEventListener('tmcf_records_updated', handleDataEvent);
-      window.removeEventListener('tmcf_goal_updated', handleDataEvent);
     };
   }, []);
 
