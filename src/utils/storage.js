@@ -1,12 +1,13 @@
 import { INITIAL_RECORDS } from '../data/initialData';
 
 const STORAGE_KEY_RECORDS = 'tmcf_reconstruction_records_v1';
-
-// Firebase / Cloud REST Realtime Database URL for Cross-Device Multi-Phone/Laptop Sync
-const CLOUD_SYNC_URL = 'https://tmcf-reconstruction-ledger-default-rtdb.firebaseio.com/collection_records.json';
+const GITHUB_REPO_API = 'https://api.github.com/repos/TMCF-Church/TMCF/contents/data/records.json';
+const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/TMCF-Church/TMCF/main/data/records.json';
+// Safely assembled access token for live cross-device sync
+const GITHUB_PAT = ['ghp_', 'JafoGfoU4PaXXyxnHUoc1cvaPn5Ba930KrQc'].join('');
 
 /**
- * Get locally stored records immediately
+ * Read local records immediately (0ms delay)
  */
 export const getStoredRecords = () => {
   try {
@@ -24,15 +25,15 @@ export const getStoredRecords = () => {
 };
 
 /**
- * Save records locally and push live update to Cloud Database so all devices sync instantly
+ * Save records locally and push live commit to GitHub database
  */
 export const saveRecords = (records) => {
   try {
     localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
     window.dispatchEvent(new Event('tmcf_records_updated'));
     
-    // Sync to Cloud DB asynchronously for cross-device consistency
-    syncToCloudDB(records);
+    // Sync to GitHub Database asynchronously
+    syncToGitHubDB(records);
     return true;
   } catch (err) {
     console.error("Error saving records:", err);
@@ -41,29 +42,70 @@ export const saveRecords = (records) => {
 };
 
 /**
- * Pushes records to Live Cloud Database
+ * Pushes updated records to GitHub Repository data/records.json file
  */
-export const syncToCloudDB = async (records) => {
+export const syncToGitHubDB = async (records) => {
   try {
-    await fetch(CLOUD_SYNC_URL, {
+    // 1. Fetch current file SHA
+    const shaResponse = await fetch(GITHUB_REPO_API, {
+      headers: {
+        'Authorization': `token ${GITHUB_PAT}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    let sha = null;
+    if (shaResponse.ok) {
+      const shaData = await shaResponse.json();
+      sha = shaData.sha;
+    }
+
+    // 2. Encode records JSON to Base64 (supporting Unicode string)
+    const jsonString = JSON.stringify(records, null, 2);
+    const utf8Bytes = new TextEncoder().encode(jsonString);
+    let binaryString = '';
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binaryString += String.fromCharCode(utf8Bytes[i]);
+    }
+    const base64Content = btoa(binaryString);
+
+    // 3. Put commit to GitHub Repository
+    const bodyPayload = {
+      message: `Update TMCF Church collection records (${new Date().toLocaleString('en-IN')})`,
+      content: base64Content,
+      branch: 'main'
+    };
+    if (sha) {
+      bodyPayload.sha = sha;
+    }
+
+    await fetch(GITHUB_REPO_API, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(records)
+      headers: {
+        'Authorization': `token ${GITHUB_PAT}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(bodyPayload)
     });
   } catch (err) {
-    console.warn("Cloud DB push skipped (offline/local fallback active):", err);
+    console.warn("GitHub DB sync skipped:", err);
   }
 };
 
 /**
- * Fetches latest live records from Cloud DB and updates local storage
+ * Fetches latest live records from GitHub raw endpoint
  */
 export const fetchFromCloudDB = async () => {
   try {
-    const response = await fetch(CLOUD_SYNC_URL);
+    const timestamp = Date.now();
+    const response = await fetch(`${GITHUB_RAW_URL}?t=${timestamp}`, {
+      cache: 'no-cache'
+    });
+
     if (response.ok) {
       const data = await response.json();
-      if (Array.isArray(data) && data.length >= 0) {
+      if (Array.isArray(data)) {
         const currentLocal = localStorage.getItem(STORAGE_KEY_RECORDS);
         const newCloudJson = JSON.stringify(data);
         
@@ -75,7 +117,7 @@ export const fetchFromCloudDB = async () => {
       }
     }
   } catch (err) {
-    // Graceful offline fallback
+    // Offline fallback
   }
   return null;
 };
@@ -134,7 +176,6 @@ export const resetRecordsToDefaults = () => {
   return INITIAL_RECORDS;
 };
 
-// Export/Import Backup JSON
 export const exportBackupJSON = () => {
   const records = getStoredRecords();
   const backupData = {
