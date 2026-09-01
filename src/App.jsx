@@ -8,7 +8,7 @@ import { RecordFormModal } from './components/RecordFormModal';
 import { LoginModal } from './components/LoginModal';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
 import { DeploymentModal } from './components/DeploymentModal';
-import { FirebaseSetupModal } from './components/FirebaseSetupModal';
+import { GoogleSheetsModal } from './components/GoogleSheetsModal';
 
 import { 
   getStoredRecords, 
@@ -46,7 +46,7 @@ export function App() {
   const [editingRecord, setEditingRecord] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [isDeploymentOpen, setIsDeploymentOpen] = useState(false);
-  const [isFirebaseOpen, setIsFirebaseOpen] = useState(false);
+  const [isGoogleSheetsOpen, setIsGoogleSheetsOpen] = useState(false);
 
   // Load initial data and auth state
   const refreshData = () => {
@@ -174,7 +174,7 @@ export function App() {
         onOpenLogin={() => setIsLoginOpen(true)}
         onLogout={handleLogout}
         onOpenDeployment={() => setIsDeploymentOpen(true)}
-        onOpenFirebase={() => setIsFirebaseOpen(true)}
+        onOpenGoogleSheets={() => setIsGoogleSheetsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -257,10 +257,10 @@ export function App() {
         onDataRestored={refreshData}
       />
 
-      <FirebaseSetupModal 
-        isOpen={isFirebaseOpen}
-        onClose={() => setIsFirebaseOpen(false)}
-        onFirebaseSaved={refreshData}
+      <GoogleSheetsModal 
+        isOpen={isGoogleSheetsOpen}
+        onClose={() => setIsGoogleSheetsOpen(false)}
+        onSheetSaved={refreshData}
       />
 
     </div>

@@ -1,9 +1,9 @@
 import React from 'react';
-import { Church, ShieldCheck, LogIn, LogOut, HelpCircle, Smartphone, Database } from 'lucide-react';
-import { getCustomFirebaseUrl } from '../utils/storage';
+import { Church, ShieldCheck, LogIn, LogOut, HelpCircle, Smartphone, FileSpreadsheet } from 'lucide-react';
+import { getGoogleSheetUrl } from '../utils/storage';
 
-export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenDeployment, onOpenFirebase }) => {
-  const hasFirebase = Boolean(getCustomFirebaseUrl());
+export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenDeployment, onOpenGoogleSheets }) => {
+  const hasSheet = Boolean(getGoogleSheetUrl());
 
   return (
     <header className="glass-panel" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem', borderBottom: '2px solid rgba(245, 158, 11, 0.2)' }}>
@@ -42,12 +42,12 @@ export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenD
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
           
           <button 
-            className={`btn ${hasFirebase ? 'btn-emerald' : 'btn-secondary'}`}
-            onClick={onOpenFirebase}
-            title="Connect Cloud DB for Live Multi-Device Sync"
+            className={`btn ${hasSheet ? 'btn-emerald' : 'btn-secondary'}`}
+            onClick={onOpenGoogleSheets}
+            title="Connect Google Sheets for Live Database Sync"
             style={{ fontSize: '0.85rem', padding: '0.5rem 0.9rem' }}
           >
-            <Database size={16} /> {hasFirebase ? 'Cloud Database Connected' : 'Connect Cloud Sync'}
+            <FileSpreadsheet size={16} /> {hasSheet ? 'Google Sheet Connected' : 'Connect Google Sheet DB'}
           </button>
 
           <button 
@@ -77,7 +77,7 @@ export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenD
             <button 
               className="btn btn-primary" 
               onClick={onOpenLogin}
-              style={{ fontSize: '0.85rem', padding: '0.55rem 1.1rem' }}
+              style={{ fontSize: '0.55rem 1.1rem' }}
             >
               <LogIn size={16} /> Pastor Login
             </button>

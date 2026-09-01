@@ -1,9 +1,35 @@
 import { INITIAL_RECORDS } from '../data/initialData';
 
 const STORAGE_KEY_RECORDS = 'tmcf_reconstruction_records_v1';
+const STORAGE_KEY_SHEET_URL = 'tmcf_custom_google_sheet_url_v1';
 const GITHUB_REPO_API = 'https://api.github.com/repos/TMCF-Church/TMCF/contents/data/records.json';
-// Automatic GitHub Database Access Token
+const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/TMCF-Church/TMCF/main/data/records.json';
 const GITHUB_PAT = ['ghp_', 'JafoGfoU4PaXXyxnHUoc1cvaPn5Ba930KrQc'].join('');
+
+/**
+ * Read connected Google Sheet Web App URL
+ */
+export const getGoogleSheetUrl = () => {
+  try {
+    return localStorage.getItem(STORAGE_KEY_SHEET_URL) || '';
+  } catch (err) {
+    return '';
+  }
+};
+
+/**
+ * Save Google Sheet Web App URL
+ */
+export const saveGoogleSheetUrl = (url) => {
+  try {
+    const cleanUrl = url.trim();
+    localStorage.setItem(STORAGE_KEY_SHEET_URL, cleanUrl);
+    window.dispatchEvent(new Event('tmcf_sheet_url_updated'));
+    return true;
+  } catch (err) {
+    return false;
+  }
+};
 
 /**
  * Read local records immediately (0ms delay)
@@ -24,15 +50,20 @@ export const getStoredRecords = () => {
 };
 
 /**
- * Save records locally and push live commit to GitHub database
+ * Save records locally and sync to connected Google Sheet or GitHub database
  */
 export const saveRecords = (records) => {
   try {
     localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
     window.dispatchEvent(new Event('tmcf_records_updated'));
     
-    // Push update to GitHub API database asynchronously
-    syncToGitHubDB(records);
+    // Sync to Google Sheet DB if URL is configured
+    const sheetUrl = getGoogleSheetUrl();
+    if (sheetUrl) {
+      syncToGoogleSheetDB(sheetUrl, records);
+    } else {
+      syncToGitHubDB(records);
+    }
     return true;
   } catch (err) {
     console.error("Error saving records:", err);
@@ -41,11 +72,26 @@ export const saveRecords = (records) => {
 };
 
 /**
+ * Pushes records to Google Sheet Web App API
+ */
+export const syncToGoogleSheetDB = async (sheetUrl, records) => {
+  try {
+    await fetch(sheetUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(records)
+    });
+  } catch (err) {
+    console.warn("Google Sheet DB sync skipped:", err);
+  }
+};
+
+/**
  * Pushes updated records to GitHub Repository data/records.json file via API
  */
 export const syncToGitHubDB = async (records) => {
   try {
-    // 1. Fetch current file SHA directly from API
     const shaResponse = await fetch(GITHUB_REPO_API, {
       headers: {
         'Authorization': `token ${GITHUB_PAT}`,
@@ -60,7 +106,6 @@ export const syncToGitHubDB = async (records) => {
       sha = shaData.sha;
     }
 
-    // 2. Encode records JSON to Base64 (supporting UTF-8 characters)
     const jsonString = JSON.stringify(records, null, 2);
     const utf8Bytes = new TextEncoder().encode(jsonString);
     let binaryString = '';
@@ -69,7 +114,6 @@ export const syncToGitHubDB = async (records) => {
     }
     const base64Content = btoa(binaryString);
 
-    // 3. Commit update to GitHub Repository
     const bodyPayload = {
       message: `Sync TMCF Church records (${new Date().toLocaleTimeString('en-IN')})`,
       content: base64Content,
@@ -94,9 +138,33 @@ export const syncToGitHubDB = async (records) => {
 };
 
 /**
- * Fetches latest live records directly from GitHub REST API (bypasses CDN cache completely)
+ * Fetches latest live records from Google Sheet DB or GitHub REST API
  */
 export const fetchFromCloudDB = async () => {
+  const sheetUrl = getGoogleSheetUrl();
+  
+  if (sheetUrl) {
+    try {
+      const response = await fetch(sheetUrl);
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const currentLocal = localStorage.getItem(STORAGE_KEY_RECORDS);
+          const newCloudJson = JSON.stringify(data);
+          
+          if (currentLocal !== newCloudJson) {
+            localStorage.setItem(STORAGE_KEY_RECORDS, newCloudJson);
+            window.dispatchEvent(new Event('tmcf_records_updated'));
+            return data;
+          }
+        }
+      }
+    } catch (err) {
+      // Fallback to GitHub API if Google Sheet request fails
+    }
+  }
+
+  // GitHub REST API fallback
   try {
     const response = await fetch(GITHUB_REPO_API, {
       headers: {
@@ -109,7 +177,6 @@ export const fetchFromCloudDB = async () => {
     if (response.ok) {
       const data = await response.json();
       if (data && data.content) {
-        // Decode Base64 payload
         const base64Clean = data.content.replace(/\n/g, '');
         const binaryStr = atob(base64Clean);
         const bytes = new Uint8Array(binaryStr.length);
@@ -134,6 +201,7 @@ export const fetchFromCloudDB = async () => {
   } catch (err) {
     // Offline fallback
   }
+
   return null;
 };
 
