@@ -1,7 +1,10 @@
 import React from 'react';
-import { Church, ShieldCheck, LogIn, LogOut, HelpCircle, Smartphone, CheckCircle } from 'lucide-react';
+import { Church, ShieldCheck, LogIn, LogOut, HelpCircle, Smartphone, Database } from 'lucide-react';
+import { getCustomFirebaseUrl } from '../utils/storage';
 
-export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenDeployment }) => {
+export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenDeployment, onOpenFirebase }) => {
+  const hasFirebase = Boolean(getCustomFirebaseUrl());
+
   return (
     <header className="glass-panel" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem', borderBottom: '2px solid rgba(245, 158, 11, 0.2)' }}>
       <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
@@ -39,12 +42,21 @@ export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenD
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
           
           <button 
-            className="btn btn-secondary" 
-            onClick={onOpenDeployment}
-            title="Deployment & Cloud Sync Guide"
+            className={`btn ${hasFirebase ? 'btn-emerald' : 'btn-secondary'}`}
+            onClick={onOpenFirebase}
+            title="Connect Cloud DB for Live Multi-Device Sync"
             style={{ fontSize: '0.85rem', padding: '0.5rem 0.9rem' }}
           >
-            <HelpCircle size={16} /> 24/7 Deployment
+            <Database size={16} /> {hasFirebase ? 'Cloud Database Connected' : 'Connect Cloud Sync'}
+          </button>
+
+          <button 
+            className="btn btn-secondary" 
+            onClick={onOpenDeployment}
+            title="Deployment Guide"
+            style={{ fontSize: '0.85rem', padding: '0.5rem 0.9rem' }}
+          >
+            <HelpCircle size={16} /> 24/7 Hosting
           </button>
 
           {isPastor ? (
