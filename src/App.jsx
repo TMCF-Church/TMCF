@@ -8,7 +8,6 @@ import { RecordFormModal } from './components/RecordFormModal';
 import { LoginModal } from './components/LoginModal';
 import { ImagePreviewModal } from './components/ImagePreviewModal';
 import { DeploymentModal } from './components/DeploymentModal';
-import { GoogleSheetsModal } from './components/GoogleSheetsModal';
 
 import { 
   getStoredRecords, 
@@ -46,7 +45,6 @@ export function App() {
   const [editingRecord, setEditingRecord] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [isDeploymentOpen, setIsDeploymentOpen] = useState(false);
-  const [isGoogleSheetsOpen, setIsGoogleSheetsOpen] = useState(false);
 
   // Load initial data and auth state
   const refreshData = () => {
@@ -174,7 +172,6 @@ export function App() {
         onOpenLogin={() => setIsLoginOpen(true)}
         onLogout={handleLogout}
         onOpenDeployment={() => setIsDeploymentOpen(true)}
-        onOpenGoogleSheets={() => setIsGoogleSheetsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -255,12 +252,6 @@ export function App() {
         isOpen={isDeploymentOpen}
         onClose={() => setIsDeploymentOpen(false)}
         onDataRestored={refreshData}
-      />
-
-      <GoogleSheetsModal 
-        isOpen={isGoogleSheetsOpen}
-        onClose={() => setIsGoogleSheetsOpen(false)}
-        onSheetSaved={refreshData}
       />
 
     </div>

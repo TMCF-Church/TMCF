@@ -1,35 +1,14 @@
 import { INITIAL_RECORDS } from '../data/initialData';
 
 const STORAGE_KEY_RECORDS = 'tmcf_reconstruction_records_v1';
-const STORAGE_KEY_SHEET_URL = 'tmcf_custom_google_sheet_url_v1';
 const GITHUB_REPO_API = 'https://api.github.com/repos/TMCF-Church/TMCF/contents/data/records.json';
-const GITHUB_RAW_URL = 'https://raw.githubusercontent.com/TMCF-Church/TMCF/main/data/records.json';
 const GITHUB_PAT = ['ghp_', 'JafoGfoU4PaXXyxnHUoc1cvaPn5Ba930KrQc'].join('');
 
 /**
- * Read connected Google Sheet Web App URL
+ * Configure your Google Sheet Web App URL here offline BEFORE deploying.
+ * Example: 'https://script.google.com/macros/s/AKfycb.../exec'
  */
-export const getGoogleSheetUrl = () => {
-  try {
-    return localStorage.getItem(STORAGE_KEY_SHEET_URL) || '';
-  } catch (err) {
-    return '';
-  }
-};
-
-/**
- * Save Google Sheet Web App URL
- */
-export const saveGoogleSheetUrl = (url) => {
-  try {
-    const cleanUrl = url.trim();
-    localStorage.setItem(STORAGE_KEY_SHEET_URL, cleanUrl);
-    window.dispatchEvent(new Event('tmcf_sheet_url_updated'));
-    return true;
-  } catch (err) {
-    return false;
-  }
-};
+export const OFFLINE_GOOGLE_SHEET_URL = '';
 
 /**
  * Read local records immediately (0ms delay)
@@ -50,17 +29,15 @@ export const getStoredRecords = () => {
 };
 
 /**
- * Save records locally and sync to connected Google Sheet or GitHub database
+ * Save records locally and sync to cloud database
  */
 export const saveRecords = (records) => {
   try {
     localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
     window.dispatchEvent(new Event('tmcf_records_updated'));
     
-    // Sync to Google Sheet DB if URL is configured
-    const sheetUrl = getGoogleSheetUrl();
-    if (sheetUrl) {
-      syncToGoogleSheetDB(sheetUrl, records);
+    if (OFFLINE_GOOGLE_SHEET_URL.trim()) {
+      syncToGoogleSheetDB(OFFLINE_GOOGLE_SHEET_URL.trim(), records);
     } else {
       syncToGitHubDB(records);
     }
@@ -72,7 +49,7 @@ export const saveRecords = (records) => {
 };
 
 /**
- * Pushes records to Google Sheet Web App API
+ * Pushes records to configured Google Sheet Web App API
  */
 export const syncToGoogleSheetDB = async (sheetUrl, records) => {
   try {
@@ -138,14 +115,12 @@ export const syncToGitHubDB = async (records) => {
 };
 
 /**
- * Fetches latest live records from Google Sheet DB or GitHub REST API
+ * Fetches latest live records from configured Google Sheet DB or GitHub REST API
  */
 export const fetchFromCloudDB = async () => {
-  const sheetUrl = getGoogleSheetUrl();
-  
-  if (sheetUrl) {
+  if (OFFLINE_GOOGLE_SHEET_URL.trim()) {
     try {
-      const response = await fetch(sheetUrl);
+      const response = await fetch(OFFLINE_GOOGLE_SHEET_URL.trim());
       if (response.ok) {
         const data = await response.json();
         if (Array.isArray(data)) {
@@ -160,7 +135,7 @@ export const fetchFromCloudDB = async () => {
         }
       }
     } catch (err) {
-      // Fallback to GitHub API if Google Sheet request fails
+      // Fallback
     }
   }
 
