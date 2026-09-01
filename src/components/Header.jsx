@@ -30,7 +30,7 @@ export const Header = ({ isPastor, pastorSession, onOpenLogin, onLogout, onOpenD
               </span>
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.15rem' }}>
-              The Methodist Church Foundation • Official Collection Ledger & Progress Tracker
+              Official Collection Ledger & Progress Tracker
             </p>
           </div>
         </div>
